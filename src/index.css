@@ -1,0 +1,85 @@
+@import "tailwindcss";
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource-variable/cairo";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans Variable", "Cairo Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Navy primary */
+  --color-brand-50: #f1f6fc;
+  --color-brand-100: #dde9f7;
+  --color-brand-200: #bcd2ee;
+  --color-brand-300: #8fb2e0;
+  --color-brand-400: #5f8dcc;
+  --color-brand-500: #3b6fb3;
+  --color-brand-600: #265592;
+  --color-brand-700: #1d4376;
+  --color-brand-800: #12305a;
+  --color-brand-900: #0b2040;
+
+  /* Deep teal accent */
+  --color-teal-50: #effaf9;
+  --color-teal-100: #d3f3f0;
+  --color-teal-500: #14a39a;
+  --color-teal-600: #0f8780;
+  --color-teal-700: #0d6b66;
+
+  /* WhatsApp green (dark enough for white text) */
+  --color-wa: #25d366;
+  --color-wa-600: #16a34f;
+  --color-wa-700: #12853f;
+
+  --color-ink: #0f172a;
+  --color-muted: #5b6678;
+  --color-line: #e5e9f0;
+  --color-surface: #f5f7fa;
+
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.05), 0 4px 14px rgb(15 23 42 / 0.05);
+  --shadow-lift: 0 2px 4px rgb(15 23 42 / 0.06), 0 14px 32px rgb(15 23 42 / 0.12);
+
+  --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: none; }
+  }
+  --animate-pulse-ring: pulse-ring 2.4s ease-out infinite;
+  @keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgb(37 211 102 / 0.55); }
+    70%, 100% { box-shadow: 0 0 0 16px rgb(37 211 102 / 0); }
+  }
+}
+
+@layer base {
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body { @apply bg-white font-sans text-ink antialiased; }
+  :focus-visible { @apply outline-2 outline-offset-2 outline-brand-500; }
+  button, a { -webkit-tap-highlight-color: transparent; }
+}
+
+@layer components {
+  .container-page { @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8; }
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold
+      transition duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary { @apply bg-brand-800 text-white hover:bg-brand-700; }
+  .btn-secondary { @apply border border-line bg-white text-ink hover:border-brand-300 hover:bg-brand-50; }
+  .btn-wa { @apply bg-wa-600 text-white shadow-sm hover:bg-wa-700; }
+  .btn-danger { @apply bg-red-600 text-white hover:bg-red-700; }
+  .btn-ghost { @apply text-brand-800 hover:bg-brand-50; }
+  .input {
+    @apply min-h-11 w-full rounded-xl border border-line bg-white px-3.5 py-2 text-sm text-ink
+      placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200;
+  }
+  .label { @apply mb-1.5 block text-sm font-semibold text-ink; }
+  .hint { @apply mt-1 text-xs text-muted; }
+  .card { @apply rounded-2xl border border-line bg-white shadow-card; }
+  .skeleton { @apply animate-pulse rounded-xl bg-slate-200/70; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
