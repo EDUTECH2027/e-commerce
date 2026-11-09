@@ -1,4 +1,4 @@
-import type { TranslatedLang } from './lang.ts'
+import type { TranslatedLang } from './lang.js'
 
 export type StockStatus = 'in_stock' | 'low_stock' | 'out_of_stock'
 

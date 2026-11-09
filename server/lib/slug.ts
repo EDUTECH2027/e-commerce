@@ -12,9 +12,9 @@ export function slugify(input: string): string {
 }
 
 /** Returns a slug not yet used, appending -2, -3 … when needed. */
-export function uniqueSlug(base: string, exists: (slug: string) => boolean): string {
+export async function uniqueSlug(base: string, exists: (slug: string) => Promise<boolean>): Promise<string> {
   let slug = base
   let n = 2
-  while (exists(slug)) slug = `${base}-${n++}`
+  while (await exists(slug)) slug = `${base}-${n++}`
   return slug
 }

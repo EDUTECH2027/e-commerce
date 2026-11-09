@@ -1,93 +1,46 @@
 import path from 'node:path'
-import { DatabaseSync } from 'node:sqlite'
-import { DATA_DIR } from './config.ts'
+import { DATA_DIR } from './config.js'
 
 /**
- * All persistence goes through this module and the repository functions in ./lib/*.
- * Swapping SQLite for PostgreSQL later only requires re-implementing those files.
+ * PostgreSQL access. Everything goes through query(), so this is the only file that knows which driver is used:
+ *  - DATABASE_URL set (Vercel + Neon): Neon's serverless driver, which talks HTTP and suits short-lived functions.
+ *  - otherwise (local development): PGlite, a real PostgreSQL running inside Node with its files in ./data/pg.
+ * Both speak the same SQL, so what you test locally is what runs online.
  */
-export const db = new DatabaseSync(path.join(DATA_DIR, 'store.db'))
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type Row = Record<string, any>
+type Runner = (text: string, params: unknown[]) => Promise<Row[]>
 
-db.exec(`
-PRAGMA journal_mode = WAL;
-PRAGMA foreign_keys = ON;
+let runner: Promise<Runner> | null = null
 
-CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  email TEXT NOT NULL UNIQUE COLLATE NOCASE,
-  password_hash TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'editor' CHECK (role IN ('owner','editor')),
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS settings (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  data TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS categories (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  slug TEXT NOT NULL UNIQUE,
-  image TEXT,
-  visible INTEGER NOT NULL DEFAULT 1,
-  sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE IF NOT EXISTS products (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  slug TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
-  price INTEGER NOT NULL,
-  promo_price INTEGER,
-  short_description TEXT NOT NULL DEFAULT '',
-  description TEXT NOT NULL DEFAULT '',
-  specs TEXT NOT NULL DEFAULT '[]',
-  colors TEXT NOT NULL DEFAULT '[]',
-  images TEXT NOT NULL DEFAULT '[]',
-  stock_status TEXT NOT NULL DEFAULT 'in_stock' CHECK (stock_status IN ('in_stock','low_stock','out_of_stock')),
-  active INTEGER NOT NULL DEFAULT 1,
-  featured INTEGER NOT NULL DEFAULT 0,
-  best_seller INTEGER NOT NULL DEFAULT 0,
-  flexible_payment INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
-CREATE INDEX IF NOT EXISTS idx_products_created ON products(created_at);
-
--- Lightweight log of "Order on WhatsApp" clicks so the owner can see what converts.
-CREATE TABLE IF NOT EXISTS whatsapp_clicks (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
-  action TEXT NOT NULL,
-  utm_source TEXT,
-  utm_medium TEXT,
-  utm_campaign TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_clicks_created ON whatsapp_clicks(created_at);
-`)
-
-/** Adds a column to an existing table when an older database is missing it (lightweight migration). */
-function addColumn(table: string, column: string, ddl: string): void {
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
-  if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`)
-}
-addColumn('products', 'translations', "TEXT NOT NULL DEFAULT '{}'")
-addColumn('categories', 'translations', "TEXT NOT NULL DEFAULT '{}'")
-
-/** Run a function inside a transaction. */
-export function tx<T>(fn: () => T): T {
-  db.exec('BEGIN')
-  try {
-    const result = fn()
-    db.exec('COMMIT')
-    return result
-  } catch (err) {
-    db.exec('ROLLBACK')
-    throw err
+async function createRunner(): Promise<Runner> {
+  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL
+  if (url) {
+    const { neon } = await import('@neondatabase/serverless')
+    const sql = neon(url)
+    return async (text, params) => (await sql.query(text, params as never[])) as Row[]
   }
+  if (process.env.VERCEL) {
+    throw new Error('DATABASE_URL is not set. Add a Postgres (Neon) database to the Vercel project; see DEPLOY.md.')
+  }
+  // Local development only. The name is a variable so deployment bundlers do not pull this package in.
+  const pkg = '@electric-sql/pglite'
+  const { PGlite } = await import(pkg)
+  const local = new PGlite(path.join(DATA_DIR, 'pg'))
+  return async (text, params) => (await local.query(text, params)).rows as Row[]
 }
+
+export async function query<T = Row>(text: string, params: unknown[] = []): Promise<T[]> {
+  runner ??= createRunner().catch((err) => {
+    runner = null // allow a retry on the next request
+    throw err
+  })
+  return (await (await runner)(text, params)) as T[]
+}
+
+export async function queryOne<T = Row>(text: string, params: unknown[] = []): Promise<T | null> {
+  return (await query<T>(text, params))[0] ?? null
+}
+
+/** Timestamps come back as Date objects from some drivers and strings from others. */
+export const iso = (v: unknown): string => (v instanceof Date ? v : new Date(String(v))).toISOString()

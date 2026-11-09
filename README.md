@@ -5,8 +5,7 @@ product, and tap **Order on WhatsApp**; WhatsApp opens with a message about that
 There is **no checkout, no online payment and no automated installment approval**. The 30% / 40% deposit offer is
 shown as information only and is agreed with the seller on WhatsApp.
 
-**Stack:** React 19 + TypeScript + Tailwind CSS 4 (Vite) · Express 5 · SQLite (`node:sqlite`, built into Node 24) ·
-sharp for image optimisation. Requires **Node 24+**.
+**Stack:** React 19 + TypeScript + Tailwind CSS 4 (Vite) · Express 5 · PostgreSQL (Neon on Vercel, PGlite locally) · Vercel Blob for photos · sharp for image optimisation. Requires **Node 24+**. Deployed entirely on Vercel: see [DEPLOY.md](DEPLOY.md).
 
 ## Quick start
 
@@ -22,15 +21,16 @@ WhatsApp number (the dashboard reminds you until you do).
 
 ## Production
 
-```bash
-npm run build
-NODE_ENV=production npm start     # serves the site, API and uploads on $PORT (default 3001)
-```
+**Vercel (recommended):** follow [DEPLOY.md](DEPLOY.md). Pages are served from the CDN, the API runs as one
+serverless function that also injects per-page title, description, Open Graph and JSON-LD tags (so Facebook and
+WhatsApp link previews work), products live in Neon Postgres and photos in Vercel Blob.
 
-Express serves the built app and injects per-page title, description, Open Graph and JSON-LD tags, so Facebook and
-WhatsApp link previews work (a plain single-page app cannot do this). Put it behind HTTPS (nginx, Caddy or your
-host's proxy), set `TRUST_PROXY=1`, and set `PUBLIC_URL` or the "Website address" in Settings.
-**Back up the `data/` folder** (database + uploaded images).
+**Locally / on your own server:** `npm run build` then `npm start` serves everything on `$PORT`. Without
+`DATABASE_URL` it uses a built-in PostgreSQL stored in `data/pg` and keeps photos in `data/uploads`; back up the
+`data/` folder. Set `DATABASE_URL` (any Neon connection string) to use a hosted database instead.
+
+Coming from the earlier SQLite version? `npm run migrate:sqlite` copies `data/store.db` into the current database
+(stop `npm run dev` first).
 
 ## Languages (English · Français · العربية)
 

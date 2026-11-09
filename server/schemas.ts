@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { isValidWhatsAppNumber, normalizeWhatsAppNumber } from '../shared/phone.ts'
-import { isStoredImageUrl } from './lib/images.ts'
+import { isValidWhatsAppNumber, normalizeWhatsAppNumber } from '../shared/phone.js'
+import { isStoredImageUrl } from './lib/images.js'
 
 const imageUrl = z.string().refine(isStoredImageUrl, 'Invalid image reference.')
 const optionalUrl = z

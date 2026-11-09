@@ -1,11 +1,11 @@
 import type { Request } from 'express'
-import { isLang, langDir, overlay, type Lang } from '../shared/lang.ts'
-import type { Category, CategoryText, Product, ProductText, SettingsText, StoreSettings } from '../shared/types.ts'
-import { PUBLIC_URL } from './config.ts'
-import { getCategoryBySlug } from './lib/categories.ts'
-import { ogImageUrl } from './lib/images.ts'
-import { allPublicSlugs, getPublicProductBySlug } from './lib/products.ts'
-import { getSettings } from './lib/settings.ts'
+import { isLang, langDir, overlay, type Lang } from '../shared/lang.js'
+import type { Category, CategoryText, Product, ProductText, SettingsText, StoreSettings } from '../shared/types.js'
+import { PUBLIC_URL } from './config.js'
+import { getCategoryBySlug } from './lib/categories.js'
+import { ogImageUrl } from './lib/images.js'
+import { allPublicSlugs, getPublicProductBySlug } from './lib/products.js'
+import { getSettings } from './lib/settings.js'
 
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
@@ -115,8 +115,8 @@ export interface PageHead {
  * Builds the <title> and social/SEO tags for a URL path so crawlers that don't run JavaScript still see them.
  * Add `?lang=fr` or `?lang=ar` to a link to get previews in that language (used for ads in those languages).
  */
-export function pageHead(req: Request): PageHead {
-  const raw = getSettings()
+export async function pageHead(req: Request): Promise<PageHead> {
+  const raw = await getSettings()
   const lang = requestLang(req)
   const s = overlay<StoreSettings & SettingsText>(raw, lang, raw.translations)
   const T = TEXT[lang]
@@ -134,7 +134,7 @@ export function pageHead(req: Request): PageHead {
   if (req.path.startsWith('/admin')) {
     meta = { title: `Admin – ${s.businessName}`, description: '', url, type: 'website', noindex: true }
   } else if (product) {
-    const found = getPublicProductBySlug(decodeURIComponent(product[1]))
+    const found = await getPublicProductBySlug(decodeURIComponent(product[1]))
     if (found) {
       const p = overlay<Product & ProductText>(found, lang, found.translations)
       const price = effectivePrice(p)
@@ -175,7 +175,7 @@ export function pageHead(req: Request): PageHead {
       meta = { title: `${T.productNotFound} | ${s.businessName}`, description: s.description, url, type: 'website', noindex: true }
     }
   } else if (category) {
-    const found = getCategoryBySlug(decodeURIComponent(category[1]))
+    const found = await getCategoryBySlug(decodeURIComponent(category[1]))
     if (found && found.visible) {
       const c = overlay<Category & CategoryText>(found, lang, found.translations)
       meta = {
@@ -212,10 +212,10 @@ export function renderHtml(template: string, head: PageHead): string {
     .replace('<!--app-head-->', head.tags)
 }
 
-export function sitemap(req: Request): string {
-  const base = baseUrl(req, getSettings())
+export async function sitemap(req: Request): Promise<string> {
+  const base = baseUrl(req, await getSettings())
   const urls = [`${base}/`, `${base}/products`]
-  urls.push(...allPublicSlugs().map((p) => `${base}/products/${encodeURIComponent(p.slug)}`))
+  urls.push(...(await allPublicSlugs()).map((p) => `${base}/products/${encodeURIComponent(p.slug)}`))
   return (
     '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
     urls.map((u) => `  <url><loc>${esc(u)}</loc></url>`).join('\n') +
@@ -223,7 +223,7 @@ export function sitemap(req: Request): string {
   )
 }
 
-export function robots(req: Request): string {
-  const base = baseUrl(req, getSettings())
+export async function robots(req: Request): Promise<string> {
+  const base = baseUrl(req, await getSettings())
   return `User-agent: *\nDisallow: /admin\nDisallow: /api/\n\nSitemap: ${base}/sitemap.xml\n`
 }

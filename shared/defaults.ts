@@ -1,4 +1,4 @@
-import type { SettingsText, StoreSettings } from './types.ts'
+import type { SettingsText, StoreSettings } from './types.js'
 
 export const DEFAULT_SETTINGS: StoreSettings = {
   businessName: 'Moussa Store',

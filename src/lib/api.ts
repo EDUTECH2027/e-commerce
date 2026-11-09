@@ -1,3 +1,5 @@
+import { prepareImage } from './image'
+
 export class ApiError extends Error {
   status: number
   fields: Record<string, string>
@@ -32,9 +34,14 @@ export const api = {
   put: <T>(url: string, body: unknown) => request<T>('PUT', url, body),
   patch: <T>(url: string, body: unknown) => request<T>('PATCH', url, body),
   del: (url: string) => request<void>('DELETE', url),
+  /** Shrinks each photo in the browser, then uploads them one per request (hosting limits the request size). */
   upload: async (files: File[]): Promise<string[]> => {
-    const form = new FormData()
-    files.forEach((f) => form.append('files', f))
-    return (await request<{ urls: string[] }>('POST', '/api/admin/uploads', form)).urls
+    const urls: string[] = []
+    for (const original of files) {
+      const form = new FormData()
+      form.append('files', await prepareImage(original))
+      urls.push(...(await request<{ urls: string[] }>('POST', '/api/admin/uploads', form)).urls)
+    }
+    return urls
   },
 }

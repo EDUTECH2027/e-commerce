@@ -3,17 +3,17 @@
  * Creates sample products with generated illustrations. Delete them from the admin dashboard
  * before going live. Does nothing if the catalogue already contains products.
  */
-import { bootstrap } from './bootstrap.ts'
-import { db } from './db.ts'
-import { listCategories } from './lib/categories.ts'
-import { processImage } from './lib/images.ts'
-import { createProduct } from './lib/products.ts'
-import { getSettings, saveSettings } from './lib/settings.ts'
-import type { ProductInput } from '../shared/types.ts'
+import { ensureReady } from './bootstrap.js'
+import { queryOne } from './db.js'
+import { listCategories } from './lib/categories.js'
+import { processImage } from './lib/images.js'
+import { createProduct } from './lib/products.js'
+import { getSettings, saveSettings } from './lib/settings.js'
+import type { ProductInput } from '../shared/types.js'
 
-bootstrap()
+await ensureReady()
 
-if ((db.prepare('SELECT COUNT(*) AS n FROM products').get() as { n: number }).n > 0) {
+if (((await queryOne<{ n: number }>('SELECT COUNT(*)::int AS n FROM products'))?.n ?? 0) > 0) {
   console.log('Products already exist – demo seed skipped.')
   process.exit(0)
 }
@@ -54,7 +54,7 @@ async function image(kind: Kind, label: string): Promise<string> {
   return processImage(Buffer.from(svg))
 }
 
-const cats = Object.fromEntries(listCategories({ visibleOnly: false }).map((c) => [c.name, c.id]))
+const cats = Object.fromEntries((await listCategories({ visibleOnly: false })).map((c) => [c.name, c.id]))
 
 interface Demo extends Partial<ProductInput> {
   name: string
@@ -100,7 +100,7 @@ const AR_BODY = '\n\nإضافة رائعة لمنزلك. تواصل معنا ع�
 for (const d of demos) {
   const img = await image(d.kind, d.name.length > 34 ? d.name.slice(0, 33) + '…' : d.name)
   const [frName, frShort, arName, arShort] = TR[d.name] ?? [d.name, d.short, d.name, d.short]
-  createProduct({
+  await createProduct({
     name: d.name,
     categoryId: cats[d.cat] ?? null,
     price: d.price,
@@ -123,6 +123,7 @@ for (const d of demos) {
   })
 }
 
-const settings = getSettings()
-if (!settings.whatsappNumber) saveSettings({ ...settings, whatsappNumber: '237670000000', phone: '+237 670 00 00 00', address: 'Douala, Cameroon' })
+const settings = await getSettings()
+if (!settings.whatsappNumber) await saveSettings({ ...settings, whatsappNumber: '237670000000', phone: '+237 670 00 00 00', address: 'Douala, Cameroon' })
 console.log(`Created ${demos.length} demo products (demo WhatsApp number 237670000000 – change it in Settings).`)
+process.exit(0)
